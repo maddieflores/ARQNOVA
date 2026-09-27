@@ -48,16 +48,24 @@ test('CU03 gestiona proyectos del anfitrión por HTTP en un esquema aislado', as
     let project;
     await t.test('ANFITRION lista vacío y crea proyecto con ownerId del JWT', async () => {
       const empty = await call('/projects', 'GET', undefined, ownerToken); assert.equal(empty.status, 200); assert.deepEqual(empty.data, []);
+      const emptyStats = await call('/projects/stats', 'GET', undefined, ownerToken);
+      assert.equal(emptyStats.status, 200);
+      assert.deepEqual(emptyStats.data, { totalProjects: 0, collaborators: 0, generatedBackends: 0, umlDiagrams: 0 });
       const spoofed = await call('/projects', 'POST', { name: 'No permitido', ownerId: otherHost.id }, ownerToken); assert.equal(spoofed.status, 400);
       const result = await call('/projects', 'POST', { name: '  Proyecto CU03  ', description: 'Descripción inicial' }, ownerToken);
       assert.equal(result.status, 201); project = result.data; assert.equal(project.name, 'Proyecto CU03'); assert.equal(project.ownerId, owner.id);
       assert.equal(project.owner.id, owner.id); assert.equal(await temp.project.count({ where: { ownerId: otherHost.id } }), 0);
     });
-    await t.test('propietario lista, busca y consulta su proyecto', async () => {
+    await t.test('propietario lista, busca y consulta su proyecto con estadísticas reales', async () => {
       const list = await call('/projects', 'GET', undefined, ownerToken); assert.equal(list.status, 200); assert.equal(list.data.length, 1);
       assert.equal((await call('/projects?search=cu03', 'GET', undefined, ownerToken)).data.length, 1);
       assert.equal((await call('/projects?search=ausente', 'GET', undefined, ownerToken)).data.length, 0);
       const result = await call(`/projects/${project.id}`, 'GET', undefined, ownerToken); assert.equal(result.status, 200); assert.equal(result.data.id, project.id);
+      const statsRes = await call('/projects/stats', 'GET', undefined, ownerToken);
+      assert.equal(statsRes.status, 200);
+      assert.equal(statsRes.data.totalProjects, 1);
+      assert.equal(statsRes.data.collaborators, 0);
+      assert.equal(statsRes.data.generatedBackends, 0);
     });
     await t.test('propietario modifica nombre y descripción sin cambiar propietario', async () => {
       const result = await call(`/projects/${project.id}`, 'PATCH', { name: 'Proyecto actualizado', description: 'Nueva descripción' }, ownerToken);

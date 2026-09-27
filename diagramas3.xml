@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<xmi:XMI xmi:version="2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1">
+	<xmi:Documentation exporter="Enterprise Architect" exporterVersion="6.5"/>
+	<uml:Model xmi:type="uml:Model" name="EA_Model" visibility="public">
+		<packagedElement xmi:type="uml:Package" xmi:id="EAPK_PACKAGE1" name="diagramas3" visibility="public">
+			<packagedElement xmi:type="uml:Class" xmi:id="EAID_CLIENTE" name="Cliente" visibility="public">
+				<ownedAttribute xmi:type="uml:Property" xmi:id="EAID_ATTR_CLIENTE_ID" name="id" visibility="private" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false">
+					<type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#UnlimitedNatural"/>
+					<properties type="Long" isOrdered="false" isDerived="false" position="0" collection="false" duplicates="0" changeability="changeable"/>
+				</ownedAttribute>
+				<ownedAttribute xmi:type="uml:Property" xmi:id="EAID_ATTR_CLIENTE_NOMBRE" name="nombre" visibility="private" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false">
+					<type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+					<properties type="String" isOrdered="false" isDerived="false" position="1" collection="false" duplicates="0" changeability="changeable"/>
+				</ownedAttribute>
+			</packagedElement>
+			<packagedElement xmi:type="uml:Class" xmi:id="EAID_PEDIDO" name="Pedido" visibility="public">
+				<ownedAttribute xmi:type="uml:Property" xmi:id="EAID_ATTR_PEDIDO_ID" name="id" visibility="private" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false">
+					<type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#UnlimitedNatural"/>
+					<properties type="Long" isOrdered="false" isDerived="false" position="0" collection="false" duplicates="0" changeability="changeable"/>
+				</ownedAttribute>
+				<ownedAttribute xmi:type="uml:Property" xmi:id="EAID_ATTR_PEDIDO_TOTAL" name="total" visibility="private" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false">
+					<type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#UnlimitedNatural"/>
+					<properties type="Decimal" isOrdered="false" isDerived="false" position="1" collection="false" duplicates="0" changeability="changeable"/>
+				</ownedAttribute>
+			</packagedElement>
+			<packagedElement xmi:type="uml:Association" xmi:id="EAID_ASSOC_CLIENTE_PEDIDO" visibility="public">
+				<memberEnd xmi:idref="EAID_dst_PEDIDO"/>
+				<memberEnd xmi:idref="EAID_src_CLIENTE"/>
+				<ownedEnd xmi:type="uml:Property" xmi:id="EAID_src_CLIENTE" visibility="public" association="EAID_ASSOC_CLIENTE_PEDIDO" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false" aggregation="none">
+					<type xmi:idref="EAID_CLIENTE"/>
+					<lowerValue xmi:type="uml:LiteralInteger" xmi:id="EAID_lh_1" value="1"/>
+					<upperValue xmi:type="uml:LiteralInteger" xmi:id="EAID_uh_1" value="1"/>
+				</ownedEnd>
+				<ownedEnd xmi:type="uml:Property" xmi:id="EAID_dst_PEDIDO" visibility="public" association="EAID_ASSOC_CLIENTE_PEDIDO" isStatic="false" isReadOnly="false" isDerived="false" isOrdered="false" isUnique="true" isDerivedUnion="false" aggregation="none">
+					<type xmi:idref="EAID_PEDIDO"/>
+					<lowerValue xmi:type="uml:LiteralInteger" xmi:id="EAID_lh_0" value="0"/>
+					<upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="EAID_uh_star" value="-1"/>
+				</ownedEnd>
+			</packagedElement>
+		</packagedElement>
+	</uml:Model>
+	<xmi:Extension extender="Enterprise Architect" extenderID="6.5">
+		<elements>
+			<element xmi:idref="EAID_CLIENTE" xmi:type="uml:Class" name="Cliente" scope="public">
+				<attributes>
+					<attribute xmi:idref="EAID_ATTR_CLIENTE_ID" name="id" scope="Private">
+						<properties type="Long"/>
+					</attribute>
+					<attribute xmi:idref="EAID_ATTR_CLIENTE_NOMBRE" name="nombre" scope="Private">
+						<properties type="String"/>
+					</attribute>
+				</attributes>
+			</element>
+			<element xmi:idref="EAID_PEDIDO" xmi:type="uml:Class" name="Pedido" scope="public">
+				<attributes>
+					<attribute xmi:idref="EAID_ATTR_PEDIDO_ID" name="id" scope="Private">
+						<properties type="Long"/>
+					</attribute>
+					<attribute xmi:idref="EAID_ATTR_PEDIDO_TOTAL" name="total" scope="Private">
+						<properties type="Decimal"/>
+					</attribute>
+				</attributes>
+			</element>
+		</elements>
+		<connectors>
+			<connector xmi:idref="EAID_ASSOC_CLIENTE_PEDIDO">
+				<source xmi:idref="EAID_CLIENTE">
+					<model type="Class" name="Cliente"/>
+					<role visibility="Public" targetScope="instance"/>
+					<type multiplicity="1" aggregation="none" containment="Unspecified"/>
+				</source>
+				<target xmi:idref="EAID_PEDIDO">
+					<model type="Class" name="Pedido"/>
+					<role visibility="Public" targetScope="instance"/>
+					<type multiplicity="0..*" aggregation="none" containment="Unspecified"/>
+				</target>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+			</connector>
+		</connectors>
+	</xmi:Extension>
+</xmi:XMI>

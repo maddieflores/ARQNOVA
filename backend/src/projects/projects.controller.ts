@@ -20,6 +20,11 @@ export class ProjectsController {
     return this.projects.listByOwner(request.user!.id, query);
   }
 
+  @Get('stats')
+  stats(@Req() request: AuthenticatedRequest) {
+    return this.projects.getStats(request.user!.id);
+  }
+
   @Get(':id')
   get(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.projects.verifyOwner(id, request.user!.id);

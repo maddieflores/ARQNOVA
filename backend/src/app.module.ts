@@ -12,9 +12,11 @@ import { CollaborationModule } from './collaboration/collaboration.module';
 import { AiModule } from './ai/ai.module';
 import { XmiModule } from './xmi/xmi.module';
 import { CodeGeneratorModule } from './code-generator/code-generator.module';
+import { FrontendGeneratorModule } from './frontend-generator/frontend-generator.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }), PrismaModule, AuthModule, AdministrationModule, ProjectsModule, UmlModule, CollaborationModule, AiModule, XmiModule, CodeGeneratorModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }), PrismaModule, AuthModule, AdministrationModule, ProjectsModule, UmlModule, CollaborationModule, AiModule, XmiModule, CodeGeneratorModule, FrontendGeneratorModule, DashboardModule],
   controllers: [HealthController],
   providers: [CollaborationGateway],
 })

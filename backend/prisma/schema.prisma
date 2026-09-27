@@ -20,6 +20,7 @@ model User {
   ownedProjects      Project[]           @relation("ProjectOwner")
   projectMemberships ProjectMember[]
   projectInvitations ProjectInvitation[] @relation("InvitedUser")
+  proposals          UmlProposal[]
 
   @@index([roleId])
 }
@@ -33,6 +34,7 @@ model Project {
   members     ProjectMember[]
   invitations ProjectInvitation[]
   diagrams    Diagram[]
+  proposals   UmlProposal[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   deletedAt   DateTime?
@@ -175,3 +177,39 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+enum ProposalStatus {
+  PENDING
+  APPLIED
+  REJECTED
+  ERROR
+}
+
+enum ProposalOrigin {
+  MOBILE_IMAGE
+  WEB_AI
+}
+
+model UmlProposal {
+  id              String         @id @default(uuid()) @db.Uuid
+  projectId       String         @db.Uuid
+  userId          String         @db.Uuid
+  origin          ProposalOrigin @default(MOBILE_IMAGE)
+  status          ProposalStatus @default(PENDING)
+  prompt          String?
+  summary         String?
+  classesCount    Int            @default(0)
+  attributesCount Int            @default(0)
+  methodsCount    Int            @default(0)
+  relationsCount  Int            @default(0)
+  proposalJson    Json
+  errorMessage    String?
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([projectId, status])
+  @@index([userId])
+}
+

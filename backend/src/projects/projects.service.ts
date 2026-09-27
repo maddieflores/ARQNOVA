@@ -28,14 +28,60 @@ export class ProjectsService {
     return project;
   }
 
-  listByOwner(ownerId: string, input: ListProjectsDto = {}) {
-    this.validateId(ownerId, 'propietario');
+  listByOwner(userId: string, input: ListProjectsDto = {}) {
+    this.validateId(userId, 'usuario');
     const { search } = validateDto(ListProjectsDto, input);
     return this.prisma.project.findMany({
-      where: { ownerId, deletedAt: null, ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}) },
+      where: {
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+        deletedAt: null,
+        ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
+      },
       select: PROJECT_SELECT,
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     });
+  }
+
+  async getStats(userId: string) {
+    this.validateId(userId, 'usuario');
+    const accessibleProjects = await this.prisma.project.findMany({
+      where: {
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        ownerId: true,
+        members: { select: { userId: true } },
+      },
+    });
+
+    const accessibleProjectIds = accessibleProjects.map(p => p.id);
+    const totalProjects = accessibleProjects.length;
+
+    const collaboratorIds = new Set<string>();
+    for (const p of accessibleProjects) {
+      for (const m of p.members) {
+        if (m.userId !== userId) {
+          collaboratorIds.add(m.userId);
+        }
+      }
+    }
+    const collaborators = collaboratorIds.size;
+
+    let umlDiagrams = 0;
+    if (accessibleProjectIds.length > 0) {
+      umlDiagrams = await this.prisma.diagram.count({
+        where: { projectId: { in: accessibleProjectIds } },
+      });
+    }
+
+    return {
+      totalProjects,
+      collaborators,
+      generatedBackends: 0,
+      umlDiagrams,
+    };
   }
 
   async verifyOwner(projectId: string, userId: string) {

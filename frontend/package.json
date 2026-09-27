@@ -15,9 +15,12 @@
     "test:collaboration": "node test/collaboration.browser.cjs",
     "test:ai-base": "node test/ai-base.browser.cjs",
     "test:ai-uml": "node test/ai-uml.browser.cjs",
+    "test:ai-voice": "node test/ai-voice.browser.cjs",
+    "test:ai-image": "node test/ai-image.browser.cjs",
     "test:xmi": "node test/xmi.browser.cjs",
     "test:code-generator": "node test/code-generator.browser.cjs",
-    "test:all": "npm run test:auth && npm run test:users && npm run test:projects && npm run test:participants && npm run test:uml-editor && npm run test:collaboration && npm run test:ai-base && npm run test:ai-uml && npm run test:xmi && npm run test:code-generator"
+    "test:all": "npm run test:auth && npm run test:users && npm run test:projects && npm run test:participants && npm run test:uml-editor && npm run test:collaboration && npm run test:ai-base && npm run test:ai-uml && npm run test:ai-voice && npm run test:ai-image && npm run test:xmi && npm run test:code-generator"
+
   },
   "dependencies": {
     "@xyflow/react": "^12.8.0",

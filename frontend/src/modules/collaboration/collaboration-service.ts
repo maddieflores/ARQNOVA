@@ -7,6 +7,13 @@ export type LockElementType = 'UML_CLASS' | 'UML_RELATION'
 export interface ProjectLock { projectId: string; elementType: LockElementType; elementId: string; userId: string; socketId: string; userName: string; acquiredAt: string; expiresAt: string }
 interface Ack<T> { ok: boolean; data?: T; status?: number; message?: string }
 interface RealtimeChange { projectId: string; diagram: Diagram; originUserId: string; persistedAt: string }
+export interface RealtimeProposalEvent {
+  projectId: string
+  proposal: import('../ai/types').SavedProposal
+  originUser?: { id: string; name: string }
+  receivedAt: string
+  message: string
+}
 type Listener<T> = (value: T) => void
 
 const changeEvents = ['uml:diagram:updated', 'uml:class:created', 'uml:class:updated', 'uml:class:moved', 'uml:class:deleted', 'uml:attribute:created', 'uml:attribute:updated', 'uml:attribute:deleted', 'uml:method:created', 'uml:method:updated', 'uml:method:deleted', 'uml:relation:created', 'uml:relation:updated', 'uml:relation:deleted']
@@ -15,6 +22,7 @@ class CollaborationClient {
   private socket: Socket | null = null; private projectId: string | null = null; private token = ''
   private readonly presenceListeners = new Set<Listener<PresenceUser[]>>(); private readonly lockListeners = new Set<Listener<ProjectLock[]>>(); private readonly changeListeners = new Set<Listener<RealtimeChange>>(); private readonly statusListeners = new Set<Listener<boolean>>()
   private readonly readyListeners = new Set<Listener<boolean>>()
+  private readonly proposalListeners = new Set<Listener<RealtimeProposalEvent>>()
   private locks: ProjectLock[] = []; private renewTimer: ReturnType<typeof setInterval> | null = null
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -27,6 +35,7 @@ class CollaborationClient {
       this.socket.on('disconnect', () => { this.status(false); this.ready(false) }); this.socket.on('connect_error', () => { this.status(false); this.ready(false) })
       this.socket.on('project:presence', value => this.presenceListeners.forEach(listener => listener(value)))
       this.socket.on('uml:lock:acquired', lock => this.updateLock(lock)); this.socket.on('uml:lock:released', lock => this.removeLock(lock))
+      this.socket.on('uml:proposal:received', value => this.proposalListeners.forEach(listener => listener(value)))
       for (const event of changeEvents) this.socket.on(event, value => this.changeListeners.forEach(listener => listener(value)))
     } else this.socket.auth = { token }
     if (!this.socket.connected) this.socket.connect()
@@ -45,6 +54,7 @@ class CollaborationClient {
   onPresence(listener: Listener<PresenceUser[]>) { this.presenceListeners.add(listener); return () => this.presenceListeners.delete(listener) }
   onLocks(listener: Listener<ProjectLock[]>) { this.lockListeners.add(listener); listener(this.locks); return () => this.lockListeners.delete(listener) }
   onChange(listener: Listener<RealtimeChange>) { this.changeListeners.add(listener); return () => this.changeListeners.delete(listener) }
+  onProposal(listener: Listener<RealtimeProposalEvent>) { this.proposalListeners.add(listener); return () => this.proposalListeners.delete(listener) }
   onStatus(listener: Listener<boolean>) { this.statusListeners.add(listener); listener(Boolean(this.socket?.connected)); return () => this.statusListeners.delete(listener) }
   onReady(listener: Listener<boolean>) { this.readyListeners.add(listener); return () => this.readyListeners.delete(listener) }
 

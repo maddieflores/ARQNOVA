@@ -65,6 +65,16 @@ export class CollaborationService implements OnModuleDestroy {
     this.server?.to(this.room(projectId)).emit(event, { projectId, diagram, originUserId, persistedAt: new Date().toISOString() });
   }
 
+  emitProposalReceived(projectId: string, proposal: unknown, originUser?: { id: string; name: string }) {
+    this.server?.to(this.room(projectId)).emit('uml:proposal:received', {
+      projectId,
+      proposal,
+      originUser,
+      receivedAt: new Date().toISOString(),
+      message: 'Se recibió una nueva propuesta UML desde el dispositivo móvil.',
+    });
+  }
+
   emitPresence(projectId: string) { this.server?.to(this.room(projectId)).emit('project:presence', this.getPresence(projectId)); }
 
   private releaseBySocket(socketId: string, projectId?: string) {
