@@ -11,7 +11,7 @@ export function configureApplication(app: INestApplication): void {
   const origin = app.get(ConfigService).getOrThrow<string>('CORS_ORIGIN');
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: true,
+    origin,
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

@@ -8,8 +8,12 @@ export class SocketAdapter extends IoAdapter {
     return new Server(target, {
       ...options,
       cors: {
-        origin: true,
+        origin: this.origin,
         credentials: true,
+      },
+      allowRequest: (request, callback) => {
+        const requestOrigin = request.headers.origin;
+        callback(null, requestOrigin === undefined || requestOrigin === this.origin);
       },
     });
   }

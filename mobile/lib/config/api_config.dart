@@ -1,5 +1,8 @@
 class ApiConfig {
-  static String _baseUrl = 'http://10.0.2.2:3000/api';
+  static String _baseUrl = const String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:3000/api',
+  ).replaceAll(RegExp(r'\/+$'), '');
 
   static String get baseUrl => _baseUrl;
 

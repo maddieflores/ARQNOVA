@@ -11,6 +11,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:validate": "prisma validate",
     "prisma:seed": "npm run build && node dist/prisma/seed.js",
+    "prisma:bootstrap-admin": "npm run build && node dist/prisma/production-bootstrap.js",
     "test:security": "npm run build && node --test test/security.test.cjs",
     "test:auth": "npm run build && node --test test/auth.test.cjs",
     "test:register": "npm run build && node --test test/register.test.cjs",
