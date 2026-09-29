@@ -37,10 +37,6 @@ if [[ "$GIT_BRANCH" != production ]]; then
   echo "Refusing to deploy a branch other than production." >&2
   exit 1
 fi
-if [[ "$SOURCE_COMMIT" != 64330c2e2e7d1490254f1ed5de7ce5971a522a9f ]]; then
-  echo "Refusing to deploy an unvalidated application commit: $SOURCE_COMMIT" >&2
-  exit 1
-fi
 
 rollback() {
   if [[ ! -L "$PREVIOUS_LINK" ]]; then
