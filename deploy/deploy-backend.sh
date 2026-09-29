@@ -123,6 +123,7 @@ git checkout --quiet --detach "$SOURCE_COMMIT"
 RESOLVED_COMMIT="$(git rev-parse HEAD)"
 RELEASE_DIR="$RELEASES_DIR/$RESOLVED_COMMIT"
 if [[ ! -d "$RELEASE_DIR" ]]; then
+  cd /
   mv "$SOURCE_DIR" "$RELEASE_DIR"
   SOURCE_DIR=''
 fi
