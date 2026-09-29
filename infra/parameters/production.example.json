@@ -1,0 +1,73 @@
+{
+  "region": "us-east-1",
+  "source": {
+    "repository": "https://github.com/maddieflores/ARQNOVA.git",
+    "branch": "production",
+    "commit": "ee58e0191bd5a476e91610af37632eab96f4a5cf"
+  },
+  "publicUrl": "https://arqnova-demo.duckdns.org",
+  "stacks": {
+    "network": {
+      "stackName": "arqnova-production-network",
+      "parameters": {
+        "ProjectName": "arqnova",
+        "Environment": "production",
+        "VpcCidr": "10.40.0.0/16",
+        "PublicSubnetCidr": "10.40.0.0/24",
+        "DbSubnet1Cidr": "10.40.10.0/24",
+        "DbSubnet2Cidr": "10.40.11.0/24"
+      }
+    },
+    "database": {
+      "stackName": "arqnova-production-database",
+      "parameters": {
+        "DbSubnetIds": "<network-output:DbSubnetIds>",
+        "DbSecurityGroupId": "<network-output:DbSecurityGroupId>",
+        "AvailabilityZone": "<network-output:AppAvailabilityZone>",
+        "DatabaseName": "arqnova",
+        "MasterUsername": "arqnova_admin",
+        "DbInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": "20",
+        "BackupRetentionDays": "7"
+      }
+    },
+    "backend": {
+      "stackName": "arqnova-production-backend",
+      "parameters": {
+        "PublicSubnetId": "<network-output:PublicSubnetId>",
+        "AppSecurityGroupId": "<network-output:AppSecurityGroupId>",
+        "DatabaseSecretArn": "<database-output:DatabaseSecretArn>",
+        "DatabaseName": "arqnova",
+        "InstanceType": "t3.medium",
+        "RootVolumeSize": "20",
+        "DomainName": "arqnova-demo.duckdns.org",
+        "GitRepository": "https://github.com/maddieflores/ARQNOVA.git",
+        "GitBranch": "production",
+        "SourceCommit": "ee58e0191bd5a476e91610af37632eab96f4a5cf"
+      }
+    },
+    "monitoring": {
+      "stackName": "arqnova-production-monitoring",
+      "parameters": {
+        "InstanceId": "<backend-output:InstanceId>",
+        "DatabaseInstanceIdentifier": "<database-output:DatabaseInstanceIdentifier>"
+      }
+    }
+  },
+  "manualConfiguration": {
+    "duckDns": {
+      "hostname": "arqnova-demo.duckdns.org",
+      "target": "<backend-output:PublicIp>",
+      "token": "<provide-outside-git>"
+    },
+    "applicationSecret": {
+      "location": "<backend-output:ApplicationSecretArn>",
+      "preserveGeneratedKeys": ["JWT_SECRET"],
+      "replacePlaceholder": {"GEMINI_API_KEY": "<provide-outside-git>"}
+    },
+    "administratorBootstrap": {
+      "transport": "Session Manager interactive hidden prompt",
+      "values": ["ADMIN_NAME", "ADMIN_EMAIL", "ADMIN_PASSWORD"]
+    }
+  }
+}

@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: One public EC2 instance with Caddy, NestJS, React and a fixed IPv4 for the ARQNOVA demo.
+
+Parameters:
+  ProjectName: {Type: String, Default: arqnova}
+  Environment: {Type: String, Default: production}
+  PublicSubnetId: {Type: AWS::EC2::Subnet::Id}
+  AppSecurityGroupId: {Type: AWS::EC2::SecurityGroup::Id}
+  DatabaseSecretArn: {Type: String}
+  DatabaseName: {Type: String, Default: arqnova}
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.medium, t3.small]
+  RootVolumeSize:
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 30
+  DomainName:
+    Type: String
+    Default: arqnova-demo.duckdns.org
+    AllowedPattern: '^[a-z0-9.-]+$'
+  GitRepository:
+    Type: String
+    Default: https://github.com/maddieflores/ARQNOVA.git
+    AllowedValues: [https://github.com/maddieflores/ARQNOVA.git]
+  GitBranch:
+    Type: String
+    Default: production
+    AllowedValues: [production]
+  SourceCommit:
+    Type: String
+    Default: ee58e0191bd5a476e91610af37632eab96f4a5cf
+    AllowedPattern: '^[0-9a-f]{40}$'
+  AmiParameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  ApplicationSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name: !Sub /${ProjectName}/${Environment}/application
+      Description: Generated JWT secret and manually supplied Gemini key for the temporary ARQNOVA demo
+      GenerateSecretString:
+        SecretStringTemplate: '{"AI_PROVIDER":"gemini","AI_TIMEOUT_MS":"25000","GEMINI_API_KEY":"REPLACE_BEFORE_DEPLOY","GEMINI_MODEL":"gemini-3.5-flash-lite","GEMINI_API_BASE_URL":"https://generativelanguage.googleapis.com/v1beta"}'
+        GenerateStringKey: JWT_SECRET
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - {Key: Project, Value: !Ref ProjectName}
+        - {Key: Environment, Value: !Ref Environment}
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-${Environment}-ec2-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ReadArqnovaSecrets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: [!Ref ApplicationSecret, !Ref DatabaseSecretArn]
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiParameter
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds: [!Ref AppSecurityGroupId]
+      SourceDestCheck: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref RootVolumeSize
+            Encrypted: true
+            DeleteOnTermination: true
+      Tags:
+        - {Key: Name, Value: !Sub '${ProjectName}-${Environment}'}
+        - {Key: Project, Value: !Ref ProjectName}
+        - {Key: Environment, Value: !Ref Environment}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -Eeuo pipefail
+          dnf install -y git jq tar gzip java-21-amazon-corretto-devel maven nodejs22 nodejs22-npm
+          id arqnova >/dev/null 2>&1 || useradd --system --create-home --shell /sbin/nologin arqnova
+          id caddy >/dev/null 2>&1 || useradd --system --home-dir /var/lib/caddy --create-home --shell /sbin/nologin caddy
+          install -d -o arqnova -g arqnova /opt/arqnova/releases /opt/arqnova/frontend-releases /var/cache/arqnova-maven /var/log/arqnova
+          install -d -m 700 -o root -g root /etc/arqnova
+          install -d -m 755 -o root -g root /etc/caddy
+          curl -fsSL https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz -o /tmp/caddy.tar.gz
+          tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
+          install -o root -g root -m 755 /tmp/caddy /usr/local/bin/caddy
+          rm -f /tmp/caddy /tmp/caddy.tar.gz
+          cat >/etc/arqnova/deployment.conf <<'EOF'
+          AWS_REGION=${AWS::Region}
+          GIT_REPOSITORY=${GitRepository}
+          GIT_BRANCH=${GitBranch}
+          SOURCE_COMMIT=${SourceCommit}
+          DATABASE_SECRET_ARN=${DatabaseSecretArn}
+          APPLICATION_SECRET_ARN=${ApplicationSecret}
+          DATABASE_NAME=${DatabaseName}
+          CORS_ORIGIN=https://${DomainName}
+          PUBLIC_ORIGIN=https://${DomainName}
+          EOF
+          chmod 600 /etc/arqnova/deployment.conf
+          cat >/etc/systemd/system/arqnova-backend.service <<'EOF'
+          [Unit]
+          Description=ARQNOVA production NestJS backend
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User=arqnova
+          Group=arqnova
+          WorkingDirectory=/opt/arqnova/current/backend
+          EnvironmentFile=/etc/arqnova/backend.env
+          ExecStart=/usr/bin/node /opt/arqnova/current/backend/dist/main.js
+          Restart=always
+          RestartSec=5
+          TimeoutStopSec=30
+          KillSignal=SIGTERM
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectHome=true
+          ProtectSystem=strict
+          ReadWritePaths=/var/cache/arqnova-maven /var/log/arqnova
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          cat >/etc/caddy/Caddyfile <<'EOF'
+          ${DomainName} {
+            encode zstd gzip
+            handle /api/* {
+              reverse_proxy 127.0.0.1:3000
+            }
+            handle /socket.io/* {
+              reverse_proxy 127.0.0.1:3000
+            }
+            handle {
+              root * /opt/arqnova/frontend-current
+              try_files {path} /index.html
+              file_server
+            }
+          }
+          EOF
+          cat >/etc/systemd/system/caddy.service <<'EOF'
+          [Unit]
+          Description=Caddy web server for ARQNOVA
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          User=caddy
+          Group=caddy
+          ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
+          ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --force
+          TimeoutStopSec=5s
+          LimitNOFILE=1048576
+          PrivateTmp=true
+          ProtectSystem=full
+          AmbientCapabilities=CAP_NET_BIND_SERVICE
+          CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+          NoNewPrivileges=true
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now amazon-ssm-agent
+          BOOTSTRAP_SOURCE="$(mktemp -d /tmp/arqnova-bootstrap-XXXXXX)"
+          cleanup_bootstrap() {
+            rm -rf "$BOOTSTRAP_SOURCE"
+          }
+          trap cleanup_bootstrap EXIT
+          git clone --quiet --branch ${GitBranch} --single-branch ${GitRepository} "$BOOTSTRAP_SOURCE"
+          cd "$BOOTSTRAP_SOURCE"
+          git cat-file -e '${SourceCommit}^{commit}'
+          git merge-base --is-ancestor ${SourceCommit} origin/${GitBranch}
+          git checkout --quiet --detach ${SourceCommit}
+          bash deploy/deploy-backend.sh deploy
+          bash deploy/deploy-frontend.sh deploy
+          systemctl enable --now arqnova-backend
+          systemctl enable --now caddy
+
+  PublicIp:
+    Type: AWS::EC2::EIP
+    DependsOn: Instance
+    Properties:
+      Domain: vpc
+      Tags:
+        - {Key: Name, Value: !Sub '${ProjectName}-${Environment}'}
+        - {Key: Project, Value: !Ref ProjectName}
+  PublicIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt PublicIp.AllocationId
+      InstanceId: !Ref Instance
+
+Outputs:
+  InstanceId: {Value: !Ref Instance}
+  PublicIp: {Value: !Ref PublicIp}
+  PublicUrl: {Value: !Sub 'https://${DomainName}'}
+  ApplicationSecretArn: {Value: !Ref ApplicationSecret}
+  GitBranch: {Value: !Ref GitBranch}
+  SourceCommit: {Value: !Ref SourceCommit}

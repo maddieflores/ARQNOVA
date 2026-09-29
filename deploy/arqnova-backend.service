@@ -1,0 +1,26 @@
+[Unit]
+Description=ARQNOVA production NestJS backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=arqnova
+Group=arqnova
+WorkingDirectory=/opt/arqnova/current/backend
+EnvironmentFile=/etc/arqnova/backend.env
+ExecStart=/usr/bin/node /opt/arqnova/current/backend/dist/main.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/cache/arqnova-maven /var/log/arqnova
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

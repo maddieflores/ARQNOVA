@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal private Single-AZ PostgreSQL RDS for the seven-day ARQNOVA demo.
+
+Parameters:
+  ProjectName: {Type: String, Default: arqnova}
+  Environment: {Type: String, Default: production}
+  DbSubnetIds: {Type: List<AWS::EC2::Subnet::Id>}
+  DbSecurityGroupId: {Type: AWS::EC2::SecurityGroup::Id}
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Same Availability Zone as the EC2 instance to avoid cross-AZ data transfer.
+  DatabaseName:
+    Type: String
+    Default: arqnova
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+  MasterUsername:
+    Type: String
+    Default: arqnova_admin
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro]
+  AllocatedStorage:
+    Type: Number
+    Default: 20
+    AllowedValues: [20]
+  BackupRetentionDays:
+    Type: Number
+    Default: 7
+    MinValue: 1
+    MaxValue: 7
+
+Resources:
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name: !Sub /${ProjectName}/${Environment}/database
+      Description: Generated credentials for the temporary ARQNOVA RDS database
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"${MasterUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 40
+        ExcludeCharacters: '"@/\\'
+      Tags:
+        - {Key: Project, Value: !Ref ProjectName}
+        - {Key: Environment, Value: !Ref Environment}
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private database subnets for ARQNOVA
+      SubnetIds: !Ref DbSubnetIds
+      Tags: [{Key: Project, Value: !Ref ProjectName}]
+  DatabaseParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: ARQNOVA PostgreSQL 17 parameters
+      Family: postgres17
+      Parameters:
+        rds.force_ssl: '1'
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub ${ProjectName}-${Environment}
+      Engine: postgres
+      EngineVersion: '17'
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: !Ref AllocatedStorage
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: !Ref DatabaseName
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DatabaseSecret}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DatabaseSecret}:SecretString:password}}'
+      Port: 5432
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroupId]
+      DBParameterGroupName: !Ref DatabaseParameterGroup
+      PubliclyAccessible: false
+      AvailabilityZone: !Ref AvailabilityZone
+      MultiAZ: false
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      DeleteAutomatedBackups: true
+      CopyTagsToSnapshot: true
+      AutoMinorVersionUpgrade: true
+      DeletionProtection: false
+      EnablePerformanceInsights: false
+      Tags:
+        - {Key: Project, Value: !Ref ProjectName}
+        - {Key: Environment, Value: !Ref Environment}
+  DatabaseSecretAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DatabaseSecret
+      TargetId: !Ref Database
+      TargetType: AWS::RDS::DBInstance
+
+Outputs:
+  DatabaseEndpoint: {Value: !GetAtt Database.Endpoint.Address}
+  DatabasePort: {Value: !GetAtt Database.Endpoint.Port}
+  DatabaseName: {Value: !Ref DatabaseName}
+  DatabaseSecretArn: {Value: !Ref DatabaseSecret}
+  DatabaseInstanceIdentifier: {Value: !Ref Database}

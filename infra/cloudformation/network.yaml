@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal ARQNOVA demo network without NAT or load balancers.
+
+Parameters:
+  ProjectName: {Type: String, Default: arqnova}
+  Environment: {Type: String, Default: production}
+  VpcCidr: {Type: String, Default: 10.40.0.0/16}
+  PublicSubnetCidr: {Type: String, Default: 10.40.0.0/24}
+  DbSubnet1Cidr: {Type: String, Default: 10.40.10.0/24}
+  DbSubnet2Cidr: {Type: String, Default: 10.40.11.0/24}
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - {Key: Name, Value: !Sub '${ProjectName}-${Environment}-vpc'}
+        - {Key: Project, Value: !Ref ProjectName}
+        - {Key: Environment, Value: !Ref Environment}
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-igw'}]
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: false
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-public'}]
+  DbSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref DbSubnet1Cidr
+      MapPublicIpOnLaunch: false
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-db-a'}]
+  DbSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref DbSubnet2Cidr
+      MapPublicIpOnLaunch: false
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-db-b'}]
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-public'}]
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicSubnet, RouteTableId: !Ref PublicRouteTable}
+  DbRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-database-private'}]
+  DbSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref DbSubnet1, RouteTableId: !Ref DbRouteTable}
+  DbSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref DbSubnet2, RouteTableId: !Ref DbRouteTable}
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTP and HTTPS for Caddy; no inbound SSH
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: Lets Encrypt and HTTP redirect}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: ARQNOVA HTTPS}
+      SecurityGroupEgress:
+        - {IpProtocol: '-1', CidrIp: 0.0.0.0/0, Description: Updates GitHub npm Gemini DuckDNS and RDS}
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-app'}]
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL from the ARQNOVA EC2 instance only
+      VpcId: !Ref Vpc
+      SecurityGroupEgress: []
+      Tags: [{Key: Name, Value: !Sub '${ProjectName}-${Environment}-database'}]
+  DbFromAppIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+Outputs:
+  VpcId: {Value: !Ref Vpc}
+  PublicSubnetId: {Value: !Ref PublicSubnet}
+  AppAvailabilityZone: {Value: !GetAtt PublicSubnet.AvailabilityZone}
+  DbSubnetIds: {Value: !Join [',', [!Ref DbSubnet1, !Ref DbSubnet2]]}
+  AppSecurityGroupId: {Value: !Ref AppSecurityGroup}
+  DbSecurityGroupId: {Value: !Ref DbSecurityGroup}
