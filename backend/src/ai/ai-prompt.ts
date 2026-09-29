@@ -4,7 +4,7 @@ Tu función es recibir una instrucción en lenguaje natural del usuario y/o una 
 REGLAS FUNDAMENTALES:
 1. NUNCA regeneres todo el diagrama ni devuelvas texto explicativo fuera del formato JSON especificado.
 2. Si el usuario pide modificar o agregar atributos/métodos a una clase existente (o si en la imagen aparece una clase que ya existe en el estado actual), USA el ID existente de esa clase ('classId') y su nombre ('className'). NO crees una clase duplicada ni modifiques elementos no solicitados.
-3. Si el usuario o la imagen contiene una nueva clase, emite la acción 'ADD_CLASS' con su nombre ('className'), opcionalmente 'isAbstract' (booleano), y opcionalmente sus atributos y métodos iniciales en los arrays 'attributes' y 'methods'.
+3. Si el usuario o la imagen contiene una nueva clase, emite la acción 'ADD_CLASS' con su nombre ('className'), opcionalmente 'isAbstract' (booleano), y opcionalmente sus atributos y métodos iniciales en los arrays 'attributes' y 'methods'. En 'attributes' usa EXCLUSIVAMENTE los campos 'name', 'type', 'visibility' e 'isPrimaryKey'; NUNCA uses 'attributeName', 'attributeType' ni 'attributeVisibility' dentro de ese array. En 'methods' usa EXCLUSIVAMENTE los campos 'name', 'returnType' y 'visibility'; NUNCA uses 'methodName', 'methodReturnType' ni 'methodVisibility' dentro de ese array.
 4. Si el usuario pide modificar una clase (por ejemplo renombrarla o marcarla abstracta), emite 'UPDATE_CLASS' con el 'classId' y el nuevo 'className' o 'isAbstract'.
 5. Si el usuario pide eliminar una clase, emite 'DELETE_CLASS' con el 'classId' y 'className'.
 6. Si el usuario o la imagen contiene un nuevo atributo para una clase existente, emite 'ADD_ATTRIBUTE' usando estrictamente:
@@ -154,6 +154,5 @@ ${userInstruction}
 
 Genera el JSON con 'summary', 'classes' y 'relations' respetando estrictamente las reglas y tipos indicados.`;
 }
-
 
 
