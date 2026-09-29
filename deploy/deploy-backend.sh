@@ -6,6 +6,7 @@ set -Eeuo pipefail
 #        sudo ./deploy-backend.sh rollback
 
 ACTION="${1:-deploy}"
+SOURCE_COMMIT_OVERRIDE="${SOURCE_COMMIT_OVERRIDE:-}"
 CONFIG_FILE=/etc/arqnova/deployment.conf
 ENV_FILE=/etc/arqnova/backend.env
 RELEASES_DIR=/opt/arqnova/releases
@@ -24,6 +25,7 @@ fi
 
 # shellcheck disable=SC1090
 source "$CONFIG_FILE"
+SOURCE_COMMIT="${SOURCE_COMMIT_OVERRIDE:-$SOURCE_COMMIT}"
 : "${AWS_REGION:?}"
 : "${GIT_REPOSITORY:?}"
 : "${GIT_BRANCH:?}"
@@ -144,6 +146,8 @@ sudo -u arqnova --preserve-env=NODE_ENV,PORT,CORS_ORIGIN,DATABASE_URL,JWT_SECRET
 
 if [[ -L "$CURRENT_LINK" ]]; then
   ln -sfn "$(readlink -f "$CURRENT_LINK")" "$PREVIOUS_LINK"
+elif [[ -e "$CURRENT_LINK" ]]; then
+  mv "$CURRENT_LINK" "$RELEASES_DIR/legacy-current-$(date +%s)"
 fi
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 systemctl daemon-reload
