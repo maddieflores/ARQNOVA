@@ -130,10 +130,12 @@ fi
 chown -R arqnova:arqnova "$RELEASE_DIR"
 
 sudo -u arqnova npm ci --prefix "$RELEASE_DIR/backend"
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+NODE_ENV=production
+PORT=3000
+JWT_EXPIRES_IN=3600
+MAVEN_COMMAND=/usr/bin/mvn
+MAVEN_REPOSITORY=/var/cache/arqnova-maven
+export NODE_ENV PORT CORS_ORIGIN DATABASE_URL JWT_SECRET JWT_EXPIRES_IN AI_PROVIDER AI_TIMEOUT_MS GEMINI_API_KEY GEMINI_MODEL GEMINI_API_BASE_URL MAVEN_COMMAND MAVEN_REPOSITORY
 [[ -n "${DATABASE_URL:-}" ]] && echo DATABASE_URL_SET || { echo DATABASE_URL_MISSING >&2; exit 1; }
 sudo -u arqnova bash -c 'export DATABASE_URL="$1"; exec npm run prisma:generate --prefix "$2"' _ "$DATABASE_URL" "$RELEASE_DIR/backend"
 sudo -u arqnova npm run build --prefix "$RELEASE_DIR/backend"
