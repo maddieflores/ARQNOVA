@@ -41,12 +41,73 @@ export class AiUmlProposalService {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new BadGatewayException('El proveedor devolvió una propuesta inválida');
     }
-    const proposal = plainToInstance(AiUmlProposalDto, value);
+    const proposal = plainToInstance(AiUmlProposalDto, this.normalizeProposal(value));
     const errors = validateSync(proposal, { whitelist: true, forbidNonWhitelisted: true });
     if (errors.length) {
       throw new BadGatewayException('El proveedor devolvió una propuesta inválida');
     }
     return proposal;
+  }
+
+  private normalizeProposal(value: object): object {
+    const proposal = value as Record<string, unknown>;
+    return {
+      ...proposal,
+      ...(Array.isArray(proposal.classes) ? {
+        classes: proposal.classes.map(item => this.normalizeContainer(item)),
+      } : {}),
+      ...(Array.isArray(proposal.actions) ? {
+        actions: proposal.actions.map(item => this.normalizeContainer(item)),
+      } : {}),
+    };
+  }
+
+  private normalizeContainer(value: unknown): unknown {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    const container = value as Record<string, unknown>;
+    return {
+      ...container,
+      ...(Array.isArray(container.attributes) ? {
+        attributes: container.attributes.map(item => this.normalizeAttribute(item)),
+      } : {}),
+      ...(Array.isArray(container.methods) ? {
+        methods: container.methods.map(item => this.normalizeMethod(item)),
+      } : {}),
+      ...(container.attribute ? { attribute: this.normalizeAttribute(container.attribute) } : {}),
+      ...(container.method ? { method: this.normalizeMethod(container.method) } : {}),
+    };
+  }
+
+  private normalizeAttribute(value: unknown): unknown {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    const {
+      attributeName,
+      attributeType,
+      attributeVisibility,
+      ...attribute
+    } = value as Record<string, unknown>;
+    return {
+      ...attribute,
+      name: attribute.name ?? attributeName,
+      type: attribute.type ?? attributeType,
+      visibility: attribute.visibility ?? attributeVisibility,
+    };
+  }
+
+  private normalizeMethod(value: unknown): unknown {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    const {
+      methodName,
+      methodReturnType,
+      methodVisibility,
+      ...method
+    } = value as Record<string, unknown>;
+    return {
+      ...method,
+      name: method.name ?? methodName,
+      returnType: method.returnType ?? methodReturnType,
+      visibility: method.visibility ?? methodVisibility,
+    };
   }
 
   validateSemantics(proposal: AiUmlProposalDto, currentDiagram?: any) {
