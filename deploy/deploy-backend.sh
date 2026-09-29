@@ -37,7 +37,7 @@ if [[ "$GIT_BRANCH" != production ]]; then
   echo "Refusing to deploy a branch other than production." >&2
   exit 1
 fi
-if [[ "$SOURCE_COMMIT" != ee58e0191bd5a476e91610af37632eab96f4a5cf ]]; then
+if [[ "$SOURCE_COMMIT" != b1576f777ae0a38ab77671c4b555cbb320c64f27 ]]; then
   echo "Refusing to deploy an unvalidated application commit: $SOURCE_COMMIT" >&2
   exit 1
 fi
