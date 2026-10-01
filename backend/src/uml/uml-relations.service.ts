@@ -17,7 +17,7 @@ export class UmlRelationsService {
   async create(diagramId: string, userId: string, input: CreateUmlRelationDto) {
     const dto = validateDto(CreateUmlRelationDto, input);
     await this.diagrams.verifyAccess(diagramId, userId);
-    await this.verifyEndpoints(diagramId, dto.sourceClassId, dto.targetClassId);
+    await this.verifyEndpoints(diagramId, dto.sourceClassId, dto.targetClassId, dto.associationClassId);
     return this.prisma.umlRelation.create({ data: { ...dto, label: dto.label?.trim(), diagramId } });
   }
 
@@ -27,6 +27,7 @@ export class UmlRelationsService {
     const relation = await this.find(id);
     if (expectedDiagramId && relation.diagramId !== expectedDiagramId) throw new NotFoundException('Relación UML inexistente');
     await this.diagrams.verifyAccess(relation.diagramId, userId);
+    if (dto.associationClassId) await this.verifyEndpoints(relation.diagramId, relation.sourceClassId, relation.targetClassId, dto.associationClassId);
     return this.prisma.umlRelation.update({ where: { id }, data: { ...dto, label: dto.label?.trim() } });
   }
 
@@ -37,16 +38,23 @@ export class UmlRelationsService {
     return this.prisma.umlRelation.delete({ where: { id } });
   }
 
-  private async verifyEndpoints(diagramId: string, sourceClassId: string, targetClassId: string) {
+  private async verifyEndpoints(diagramId: string, sourceClassId: string, targetClassId: string, associationClassId?: string | null) {
+    if (associationClassId && (associationClassId === sourceClassId || associationClassId === targetClassId)) {
+      throw new BadRequestException('La clase de asociación debe ser distinta de los extremos de la asociación');
+    }
     const classes = await this.prisma.umlClass.findMany({
-      where: { id: { in: [...new Set([sourceClassId, targetClassId])] } },
+      where: { id: { in: [...new Set([sourceClassId, targetClassId, ...(associationClassId ? [associationClassId] : [])])] } },
       select: { id: true, diagramId: true },
     });
     const source = classes.find(item => item.id === sourceClassId);
     const target = classes.find(item => item.id === targetClassId);
+    const associationClass = associationClassId ? classes.find(item => item.id === associationClassId) : undefined;
     if (!source || !target) throw new NotFoundException('Clase de origen o destino inexistente');
     if (source.diagramId !== diagramId || target.diagramId !== diagramId) {
       throw new BadRequestException('Las clases de una relación deben pertenecer al mismo diagrama');
+    }
+    if (associationClassId && (!associationClass || associationClass.diagramId !== diagramId)) {
+      throw new BadRequestException('La clase de asociación debe pertenecer al mismo diagrama');
     }
   }
 

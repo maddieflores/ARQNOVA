@@ -21,7 +21,7 @@ REGLAS FUNDAMENTALES:
 9. Si el usuario o la imagen contiene un método para una clase existente, emite 'ADD_METHOD' con 'classId', 'className', 'methodName', 'methodReturnType' (por defecto 'void'), 'methodVisibility' ("PUBLIC", "PRIVATE", "PROTECTED" o "PACKAGE", por defecto "PUBLIC").
 10. Si el usuario pide modificar un método, emite 'UPDATE_METHOD' con 'classId', 'methodId' (si existe), 'methodName', 'methodReturnType' y/o 'methodVisibility'.
 11. Si el usuario pide eliminar un método, emite 'DELETE_METHOD' con 'classId' y 'methodId' o 'methodName'.
-12. Si el usuario o la imagen contiene una relación entre dos clases, emite 'ADD_RELATION' con 'sourceClassId' (si existe), 'targetClassId' (si existe), 'sourceClassName', 'targetClassName', 'relationType' ("ASSOCIATION", "AGGREGATION", "COMPOSITION", "INHERITANCE" o "DEPENDENCY"), 'sourceMultiplicity' (ej: "1", "0..1", "*", "1..*", "0..*") y 'targetMultiplicity' (ej: "1", "*", "0..*", "1..*"), y opcionalmente 'label'.
+12. Si el usuario o la imagen contiene una relación entre dos clases, emite 'ADD_RELATION' con 'sourceClassId' (si existe), 'targetClassId' (si existe), 'sourceClassName', 'targetClassName', 'relationType' ("ASSOCIATION", "AGGREGATION", "COMPOSITION", "INHERITANCE" o "DEPENDENCY"), 'sourceMultiplicity' y 'targetMultiplicity', y opcionalmente 'label'. Si una tercera clase se une mediante una línea discontinua SIN FLECHA al centro de esa asociación, es una UML AssociationClass: conserva una sola relación entre los extremos y agrega 'associationClassId' (si existe) y 'associationClassName'. NUNCA la conviertas en dos asociaciones independientes ni en DEPENDENCY.
 13. Si el usuario pide modificar una relación existente, emite 'UPDATE_RELATION' con 'relationId' (o los IDs de origen y destino), 'relationType', 'sourceMultiplicity' o 'targetMultiplicity', 'label'.
 14. Si el usuario pide eliminar una relación, emite 'DELETE_RELATION' con 'relationId' (o sourceClassId y targetClassId).
 15. REGLAS ESPECÍFICAS PARA ANÁLISIS VISUAL DE IMÁGENES / FOTOGRAFÍAS:
@@ -31,7 +31,8 @@ REGLAS FUNDAMENTALES:
       * Rombo vacío o blanco -> AGGREGATION
       * Rombo sólido / relleno -> COMPOSITION
       * Triángulo vacío o flecha de generalización -> INHERITANCE
-      * Flecha punteada o discontinua -> DEPENDENCY
+      * Flecha punteada o discontinua CON FLECHA -> DEPENDENCY
+      * Línea discontinua SIN FLECHA desde una caja de clase al centro de una asociación -> AssociationClass; usa 'associationClassName' en esa asociación
     - Multiplicidades: Identifica con precisión las multiplicidades visibles en los extremos (ej: "1", "0..1", "*", "1..*", "0..*").
     - NO inventes elementos que no puedas identificar razonablemente en la imagen. Si alguna parte de la imagen es ilegible o ambigua, descríbelo en el 'summary' en lugar de inventar datos falsos.
     - Si existe un diagrama actual y se proporciona una imagen de referencia, NO dupliques las clases existentes que ya aparezcan en el diagrama actual; prefiere acciones incrementales (ADD_CLASS solo para clases nuevas, ADD_ATTRIBUTE, ADD_METHOD, ADD_RELATION).
@@ -92,9 +93,11 @@ REGLAS FUNDAMENTALES:
    - 'sourceMultiplicity': multiplicidad del extremo origen (ej: "1", "0..1", "*", "1..*", "0..*")
    - 'targetMultiplicity': multiplicidad del extremo destino (ej: "1", "0..1", "*", "1..*", "0..*")
    - 'label': opcional, verbo o rol que describe la relación (ej: "realiza", "pertenece_a", "contiene")
+   - 'associationClassName': opcional; nombre exacto de la clase asociativa unida por línea discontinua al centro de esta asociación
 6. SI SE PROPORCIONA UNA IMAGEN:
    - Analiza visualmente todas las clases, atributos (tipos, visibilidad +, -, #, ~, PKs), métodos y relaciones visibles.
-   - Rombo vacío -> AGGREGATION, Rombo relleno -> COMPOSITION, Flecha herencia -> INHERITANCE, Flecha discontinua -> DEPENDENCY, Línea simple -> ASSOCIATION.
+   - Rombo vacío -> AGGREGATION, Rombo relleno -> COMPOSITION, Flecha herencia -> INHERITANCE, Flecha discontinua con flecha -> DEPENDENCY, Línea simple -> ASSOCIATION.
+   - Una línea discontinua sin flecha desde una clase hasta el centro de una asociación identifica una UML AssociationClass. Coloca su nombre en 'associationClassName' de la relación principal; no generes relaciones desde esa clase a los extremos.
    - Extrae con precisión las multiplicidades visibles en los extremos.
 7. Devuelve EXCLUSIVAMENTE un objeto JSON válido con las propiedades 'summary', 'classes' y 'relations'. NUNCA devuelvas texto explicativo fuera del JSON.
 
@@ -126,6 +129,7 @@ ESTRUCTURA DE RESPUESTA JSON REQUERIDA:
     {
       "sourceClassName": "ClaseOrigen",
       "targetClassName": "ClaseDestino",
+      "associationClassName": "ClaseAsociativaOpcional",
       "type": "ASSOCIATION",
       "sourceMultiplicity": "1",
       "targetMultiplicity": "0..*",
@@ -154,5 +158,4 @@ ${userInstruction}
 
 Genera el JSON con 'summary', 'classes' y 'relations' respetando estrictamente las reglas y tipos indicados.`;
 }
-
 

@@ -38,6 +38,7 @@ export interface AiUmlClass {
 export interface AiUmlRelation {
   sourceClassName: string
   targetClassName: string
+  associationClassName?: string
   type: AiRelationType
   sourceMultiplicity?: string
   targetMultiplicity?: string
@@ -63,6 +64,8 @@ export interface AiUmlAction {
   sourceClassName?: string
   targetClassId?: string
   targetClassName?: string
+  associationClassId?: string
+  associationClassName?: string
   relationType?: AiRelationType
   sourceMultiplicity?: string
   targetMultiplicity?: string
@@ -119,6 +122,5 @@ export interface SavedProposal {
   user?: { id: string; name: string; email: string }
   project?: { id: string; name: string }
 }
-
 
 

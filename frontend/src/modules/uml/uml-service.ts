@@ -5,8 +5,8 @@ export interface UmlClassInput { name: string; x: number; y: number; isAbstract?
 export interface UpdateUmlClassInput { name?: string; isAbstract?: boolean; width?: number; height?: number }
 export interface UmlAttributeInput { name: string; type: string; visibility: UmlVisibility; isPrimaryKey?: boolean; position?: number }
 export interface UmlMethodInput { name: string; returnType: string; visibility: UmlVisibility; position?: number }
-export interface UmlRelationInput { sourceClassId: string; targetClassId: string; type: UmlRelationType; sourceMultiplicity?: string; targetMultiplicity?: string; label?: string }
-export type UpdateUmlRelationInput = Partial<Pick<UmlRelationInput, 'type' | 'sourceMultiplicity' | 'targetMultiplicity' | 'label'>>
+export interface UmlRelationInput { sourceClassId: string; targetClassId: string; associationClassId?: string | null; type: UmlRelationType; sourceMultiplicity?: string; targetMultiplicity?: string; label?: string }
+export type UpdateUmlRelationInput = Partial<Pick<UmlRelationInput, 'associationClassId' | 'type' | 'sourceMultiplicity' | 'targetMultiplicity' | 'label'>>
 
 const root = (projectId: string) => `/projects/${projectId}/diagram`
 

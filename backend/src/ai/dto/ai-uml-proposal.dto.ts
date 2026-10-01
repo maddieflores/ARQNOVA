@@ -42,6 +42,7 @@ export class AiUmlClassDto {
 export class AiUmlRelationDto {
   @IsString() @IsNotEmpty() @MaxLength(80) sourceClassName!: string;
   @IsString() @IsNotEmpty() @MaxLength(80) targetClassName!: string;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(80) associationClassName?: string;
   @IsEnum(UmlRelationType) type!: UmlRelationType;
   @IsOptional() @IsString() @Matches(MULTIPLICITY) sourceMultiplicity?: string;
   @IsOptional() @IsString() @Matches(MULTIPLICITY) targetMultiplicity?: string;
@@ -70,6 +71,8 @@ export class AiUmlActionDto {
   @IsOptional() @IsString() @MaxLength(80) sourceClassName?: string;
   @IsOptional() @IsString() @MaxLength(120) targetClassId?: string;
   @IsOptional() @IsString() @MaxLength(80) targetClassName?: string;
+  @IsOptional() @IsString() @MaxLength(120) associationClassId?: string;
+  @IsOptional() @IsString() @MaxLength(80) associationClassName?: string;
   @IsOptional() @IsEnum(UmlRelationType) relationType?: UmlRelationType;
   @IsOptional() @IsString() @Matches(MULTIPLICITY) sourceMultiplicity?: string;
   @IsOptional() @IsString() @Matches(MULTIPLICITY) targetMultiplicity?: string;

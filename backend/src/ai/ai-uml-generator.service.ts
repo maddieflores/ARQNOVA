@@ -164,18 +164,21 @@ export class AiUmlGeneratorService {
         for (const rel of relations) {
           const sourceId = classIds.get(this.key(rel.sourceClassName));
           const targetId = classIds.get(this.key(rel.targetClassName));
+          const associationClassId = rel.associationClassName ? classIds.get(this.key(rel.associationClassName)) : undefined;
 
           if (!sourceId || !targetId) {
             throw new BadRequestException(
               `La propuesta contiene una relación entre clases inexistentes ('${rel.sourceClassName}' -> '${rel.targetClassName}')`,
             );
           }
+          if (rel.associationClassName && !associationClassId) throw new BadRequestException(`La clase de asociación '${rel.associationClassName}' no existe`);
 
           await tx.umlRelation.create({
             data: {
               diagramId: diagram.id,
               sourceClassId: sourceId,
               targetClassId: targetId,
+              associationClassId,
               type: rel.type || UmlRelationType.ASSOCIATION,
               sourceMultiplicity: rel.sourceMultiplicity || '1',
               targetMultiplicity: rel.targetMultiplicity || '1',
@@ -225,6 +228,7 @@ export class AiUmlGeneratorService {
           .map(a => ({
             sourceClassName: a.sourceClassName!.trim(),
             targetClassName: a.targetClassName!.trim(),
+            associationClassName: a.associationClassName?.trim(),
             type: a.relationType || UmlRelationType.ASSOCIATION,
             sourceMultiplicity: a.sourceMultiplicity || '1',
             targetMultiplicity: a.targetMultiplicity || '1',
@@ -282,6 +286,9 @@ export class AiUmlGeneratorService {
           throw new BadGatewayException(
             `La propuesta contiene una relación con clases no definidas ('${rel.sourceClassName}' -> '${rel.targetClassName}')`,
           );
+        }
+        if (rel.associationClassName && !classNames.has(this.key(rel.associationClassName))) {
+          throw new BadGatewayException(`La clase de asociación '${rel.associationClassName}' no está definida`);
         }
         const pairKey = `${source}:${target}:${rel.type}`;
         if (relationPairs.has(pairKey)) {

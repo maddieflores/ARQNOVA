@@ -285,6 +285,7 @@ export function UmlEditorPage() {
     }
     const update = {
       type: input.type,
+      associationClassId: input.associationClassId,
       sourceMultiplicity: input.sourceMultiplicity,
       targetMultiplicity: input.targetMultiplicity,
       label: input.label,
@@ -335,6 +336,7 @@ export function UmlEditorPage() {
       setRelationDraft({
         sourceClassId: relation.sourceClassId,
         targetClassId: relation.targetClassId,
+        associationClassId: relation.associationClassId ?? undefined,
         type: relation.type,
         sourceMultiplicity: relation.sourceMultiplicity,
         targetMultiplicity: relation.targetMultiplicity,
@@ -1689,6 +1691,14 @@ function RelationPanel({
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Clase de asociación (opcional)</label>
+            <select aria-label="Clase de asociación" className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0E1535] p-2 text-xs font-medium text-slate-900 dark:text-white" value={value.associationClassId ?? ''} onChange={event => update('associationClassId', event.target.value || null)}>
+              <option value="">Ninguna</option>
+              {classes.filter(item => item.id !== value.sourceClassId && item.id !== value.targetClassId).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <p className="mt-1 text-[10px] text-slate-500">Enlace UML discontinuo al centro de la asociación.</p>
           </div>
         </section>
 

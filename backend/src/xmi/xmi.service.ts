@@ -22,13 +22,14 @@ export class XmiService {
     const modelXmiId = `EAID_Model_${this.safeId(diagram.id)}`;
     const diagramXmiId = `EAID_Diagram_${this.safeId(diagram.id)}`;
     const classId = new Map(diagram.classes.map(item => [item.id, `EAID_${this.safeId(item.id)}`]));
-    const relationIdMap = new Map(diagram.relations.map(item => [item.id, `EAID_Rel_${this.safeId(item.id)}`]));
+    const relationIdMap = new Map(diagram.relations.map(item => [item.id, item.associationClassId ? classId.get(item.associationClassId)! : `EAID_Rel_${this.safeId(item.id)}`]));
 
     const typeNames = [...new Set(diagram.classes.flatMap(item => [...item.attributes.map(attribute => attribute.type), ...item.methods.map(method => method.returnType)]))];
     const typeIds = new Map(typeNames.map((name, index) => [name, `primitive_${index}_${this.safeFilename(name)}`]));
 
     const packagedElement: Record<string, unknown>[] = typeNames.map(name => ({ '@_xmi:type': 'uml:PrimitiveType', '@_xmi:id': typeIds.get(name), '@_name': name }));
-    packagedElement.push(...diagram.classes.map(umlClass => {
+    const associationClassIds = new Set(diagram.relations.map(item => item.associationClassId).filter(Boolean));
+    packagedElement.push(...diagram.classes.filter(umlClass => !associationClassIds.has(umlClass.id)).map(umlClass => {
       const cId = classId.get(umlClass.id)!;
       return {
         '@_xmi:type': 'uml:Class',
@@ -77,7 +78,8 @@ export class XmiService {
     }));
 
     for (const relation of diagram.relations) {
-      packagedElement.push(this.exportRelation(relation, classId, relationIdMap));
+      const associationClass = relation.associationClassId ? diagram.classes.find(item => item.id === relation.associationClassId) : undefined;
+      packagedElement.push(this.exportRelation(relation, classId, relationIdMap, associationClass, typeIds));
     }
 
     // Geometry calculations for Enterprise Architect diagram extension
@@ -90,11 +92,11 @@ export class XmiService {
       const cId = classId.get(umlClass.id)!;
       return {
         '@_xmi:idref': cId,
-        '@_xmi:type': 'uml:Class',
+        '@_xmi:type': associationClassIds.has(umlClass.id) ? 'uml:AssociationClass' : 'uml:Class',
         '@_name': umlClass.name,
         '@_scope': 'public',
         model: { '@_package': modelXmiId, '@_tpos': '0', '@_ea_localid': String(index + 1), '@_ea_eleType': 'element' },
-        properties: { '@_isSpecification': 'false', '@_sType': 'Class', '@_nType': '0', '@_scope': 'public', '@_isAbstract': String(umlClass.isAbstract) },
+        properties: { '@_isSpecification': 'false', '@_sType': associationClassIds.has(umlClass.id) ? 'AssociationClass' : 'Class', '@_nType': '0', '@_scope': 'public', '@_isAbstract': String(umlClass.isAbstract) },
         project: { '@_author': 'ARQNOVA', '@_version': '1.0', '@_status': 'Proposed' },
         attributes: umlClass.attributes.length > 0 ? {
           attribute: umlClass.attributes.map((attr, aIdx) => ({
@@ -276,6 +278,7 @@ export class XmiService {
             diagramId: diagram.id,
             sourceClassId: ids.get(relation.sourceExternalId)!,
             targetClassId: ids.get(relation.targetExternalId)!,
+            associationClassId: relation.associationClassExternalId ? ids.get(relation.associationClassExternalId) : undefined,
             type: relation.type,
             sourceMultiplicity: relation.sourceMultiplicity,
             targetMultiplicity: relation.targetMultiplicity,
@@ -361,7 +364,7 @@ export class XmiService {
     collectElements(modelNode);
 
     const typeNames = new Map(allElements.filter(item => this.localType(item?.['@_xmi:type']) === 'PrimitiveType').map(item => [String(item['@_xmi:id']), String(item['@_name'])]));
-    const classNodes = allElements.filter(item => this.localType(item?.['@_xmi:type']) === 'Class');
+    const classNodes = allElements.filter(item => ['Class', 'AssociationClass'].includes(this.localType(item?.['@_xmi:type'])));
     const classes: XmiClass[] = classNodes.map((item, index) => this.parseClass(item, index, typeNames, eaPositions, eaAttrTypes, eaMethodReturnTypes));
     const externalIds = new Set<string>();
     const names = new Set<string>();
@@ -516,6 +519,7 @@ export class XmiService {
     const local = this.localType(item?.['@_xmi:type']);
     const supported: Record<string, UmlRelationType> = {
       Association: UmlRelationType.ASSOCIATION,
+      AssociationClass: UmlRelationType.ASSOCIATION,
       Aggregation: UmlRelationType.AGGREGATION,
       Composition: UmlRelationType.COMPOSITION,
       Generalization: UmlRelationType.INHERITANCE,
@@ -537,6 +541,7 @@ export class XmiService {
     return {
       sourceExternalId: this.required(source, 'origen de relación'),
       targetExternalId: this.required(target, 'destino de relación'),
+      associationClassExternalId: local === 'AssociationClass' ? this.required(item['@_xmi:id'], 'clase de asociación') : undefined,
       type,
       sourceMultiplicity: item['@_arqnova:sourceMultiplicity'] ?? this.multiplicity(ends[0]),
       targetMultiplicity: item['@_arqnova:targetMultiplicity'] ?? this.multiplicity(ends[1]),
@@ -544,21 +549,37 @@ export class XmiService {
     };
   }
 
-  private exportRelation(relation: any, classIds: Map<string, string>, relationIdMap: Map<string, string>) {
+  private exportRelation(relation: any, classIds: Map<string, string>, relationIdMap: Map<string, string>, associationClass?: any, typeIds?: Map<string, string>) {
     const source = classIds.get(relation.sourceClassId)!;
     const target = classIds.get(relation.targetClassId)!;
-    const relId = relationIdMap.get(relation.id)!;
-    const typeName = relation.type === UmlRelationType.DEPENDENCY ? 'Dependency' : relation.type === UmlRelationType.INHERITANCE ? 'Generalization' : 'Association';
+    const relId = associationClass ? classIds.get(associationClass.id)! : relationIdMap.get(relation.id)!;
+    const typeName = associationClass ? 'AssociationClass' : relation.type === UmlRelationType.DEPENDENCY ? 'Dependency' : relation.type === UmlRelationType.INHERITANCE ? 'Generalization' : 'Association';
     const result: any = {
       '@_xmi:type': `uml:${typeName}`,
       '@_xmi:id': relId,
-      '@_name': relation.label ?? undefined,
+      '@_name': associationClass?.name ?? relation.label ?? undefined,
       '@_arqnova:source': source,
       '@_arqnova:target': target,
       '@_arqnova:type': relation.type,
       '@_arqnova:sourceMultiplicity': relation.sourceMultiplicity,
       '@_arqnova:targetMultiplicity': relation.targetMultiplicity,
     };
+    if (associationClass) {
+      result['@_isAbstract'] = String(associationClass.isAbstract);
+      result['@_arqnova:x'] = String(associationClass.x);
+      result['@_arqnova:y'] = String(associationClass.y);
+      result.ownedAttribute = associationClass.attributes.map((attribute: any, index: number) => ({
+        '@_xmi:type': 'uml:Property', '@_xmi:id': `EAID_Attr_${this.safeId(attribute.id)}`,
+        '@_name': attribute.name, '@_type': typeIds?.get(attribute.type), '@_visibility': attribute.visibility.toLowerCase(),
+        '@_arqnova:typeName': attribute.type, '@_arqnova:isPrimaryKey': String(attribute.isPrimaryKey),
+        properties: { '@_type': attribute.type, '@_position': String(index) },
+      }));
+      result.ownedOperation = associationClass.methods.map((method: any, index: number) => ({
+        '@_xmi:type': 'uml:Operation', '@_xmi:id': `EAID_Meth_${this.safeId(method.id)}`,
+        '@_name': method.name, '@_visibility': method.visibility.toLowerCase(), '@_arqnova:returnType': method.returnType,
+        properties: { '@_type': method.returnType, '@_returnType': method.returnType, '@_position': String(index) },
+      }));
+    }
     if (relation.type === UmlRelationType.DEPENDENCY) {
       result['@_client'] = source;
       result['@_supplier'] = target;
@@ -592,7 +613,8 @@ export class XmiService {
   private multiplicity(end: any) {
     if (!end) return '1';
     const lower = String(end.lowerValue?.['@_value'] ?? end['@_lower'] ?? '1');
-    const upper = String(end.upperValue?.['@_value'] ?? end['@_upper'] ?? lower);
+    const rawUpper = String(end.upperValue?.['@_value'] ?? end['@_upper'] ?? lower);
+    const upper = rawUpper === '-1' ? '*' : rawUpper;
     return lower === upper ? lower : `${lower}..${upper}`;
   }
 
@@ -661,4 +683,3 @@ export class XmiService {
     return value.replaceAll('-', '_');
   }
 }
-

@@ -145,6 +145,9 @@ export class AiUmlProposalService {
           if (!classNames.has(source) || !classNames.has(target)) {
             throw new BadGatewayException('La propuesta contiene una relación con clases inexistentes');
           }
+          if (relation.associationClassName && !classNames.has(relation.associationClassName.trim().toLocaleLowerCase())) {
+            throw new BadGatewayException('La propuesta contiene una clase de asociación inexistente');
+          }
           const key = `${source}:${target}:${relation.type}`;
           if (relations.has(key)) {
             throw new BadGatewayException('La propuesta contiene relaciones duplicadas');

@@ -103,14 +103,17 @@ export class AiUmlApplyService {
             for (const relation of dto.proposal.relations) {
               const sourceId = classIds.get(this.key(relation.sourceClassName));
               const targetId = classIds.get(this.key(relation.targetClassName));
+              const associationClassId = relation.associationClassName ? classIds.get(this.key(relation.associationClassName)) : undefined;
               if (!sourceId || !targetId) {
                 throw new BadRequestException('La propuesta contiene relaciones con clases inexistentes');
               }
+              if (relation.associationClassName && !associationClassId) throw new BadRequestException('La clase de asociación no existe');
               await transaction.umlRelation.create({
                 data: {
                   diagramId: diagram.id,
                   sourceClassId: sourceId,
                   targetClassId: targetId,
+                  associationClassId,
                   type: relation.type,
                   sourceMultiplicity: relation.sourceMultiplicity ?? '1',
                   targetMultiplicity: relation.targetMultiplicity ?? '1',
@@ -430,9 +433,13 @@ export class AiUmlApplyService {
         case AiActionType.ADD_RELATION: {
           const source = findClass(action.sourceClassId, action.sourceClassName);
           const target = findClass(action.targetClassId, action.targetClassName);
+          const associationClass = action.associationClassId || action.associationClassName
+            ? findClass(action.associationClassId, action.associationClassName)
+            : undefined;
           if (!source || !target) {
             throw new BadRequestException('Clases de origen o destino inexistentes para la relación');
           }
+          if ((action.associationClassId || action.associationClassName) && !associationClass) throw new BadRequestException('Clase de asociación inexistente');
           const relType = action.relationType || UmlRelationType.ASSOCIATION;
 
           const created = await tx.umlRelation.create({
@@ -440,6 +447,7 @@ export class AiUmlApplyService {
               diagramId: diagram.id,
               sourceClassId: source.id,
               targetClassId: target.id,
+              associationClassId: associationClass?.id,
               type: relType,
               sourceMultiplicity: action.sourceMultiplicity || '1',
               targetMultiplicity: action.targetMultiplicity || '1',

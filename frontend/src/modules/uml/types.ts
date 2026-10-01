@@ -46,6 +46,7 @@ export interface UmlRelation {
   diagramId: string
   sourceClassId: string
   targetClassId: string
+  associationClassId: string | null
   type: UmlRelationType
   sourceMultiplicity: string
   targetMultiplicity: string

@@ -118,6 +118,7 @@ model UmlClass {
   methods         UmlMethod[]
   sourceRelations UmlRelation[]  @relation("RelationSource")
   targetRelations UmlRelation[]  @relation("RelationTarget")
+  associationClassRelation UmlRelation? @relation("AssociationClass")
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -154,6 +155,7 @@ model UmlRelation {
   diagramId          String          @db.Uuid
   sourceClassId      String          @db.Uuid
   targetClassId      String          @db.Uuid
+  associationClassId String?         @unique @db.Uuid
   type               UmlRelationType
   sourceMultiplicity String          @default("1")
   targetMultiplicity String          @default("1")
@@ -161,6 +163,7 @@ model UmlRelation {
   diagram            Diagram         @relation(fields: [diagramId], references: [id], onDelete: Cascade)
   sourceClass        UmlClass        @relation("RelationSource", fields: [sourceClassId], references: [id], onDelete: Restrict)
   targetClass        UmlClass        @relation("RelationTarget", fields: [targetClassId], references: [id], onDelete: Restrict)
+  associationClass   UmlClass?       @relation("AssociationClass", fields: [associationClassId], references: [id], onDelete: SetNull)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -212,4 +215,3 @@ model UmlProposal {
   @@index([projectId, status])
   @@index([userId])
 }
-
